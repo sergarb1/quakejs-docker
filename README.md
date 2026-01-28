@@ -1,58 +1,131 @@
-<div align="center">
-    
+   
 ![logo](https://github.com/treyyoder/quakejs-docker/blob/master/quakejs-docker.png?raw=true)
-# quakejs-docker 
+# QuakeJS Docker (Versión Modificada)
 
 ![Docker Image CI](https://github.com/treyyoder/quakejs-docker/workflows/Docker%20Image%20CI/badge.svg)
 </div>
 
-### A fully local and Dockerized quakejs server. Independent, unadulterated, and free from the middleman.  
+### Un servidor de QuakeJS totalmente local y "dockerizado". Independiente y listo para la acción.
 
-The goal of this project was to create a fully independent quakejs server in Docker that does not require content to be served from the internet.
-Hence, once pulled, this does not need to connect to any external provider, ie. content.quakejs.com. Nor does this server need to be proxied/served/relayed from quakejs.com
+Esta es una versión modificada para asegurar que el juego funcione correctamente (“para que vaya”) sin depender de servicios externos.  
+Se han realizado ajustes para **parchear dinámicamente el cliente web (`index.html`) en tiempo de ejecución**, gestionando correctamente el hostname y el puerto HTTP.
 
-#### Simply pull the image [treyyoder/quakejs](https://hub.docker.com/r/treyyoder/quakejs)
-```
-docker pull treyyoder/quakejs:latest
-```
-#### and run it:
+---
 
-```
-docker run -d --name quakejs -e SERVER=<YOUR-IP-ADDRESS> -e HTTP_PORT=<HTTP_PORT> -p <HTTP_PORT>:80 -p 27960:27960 treyyoder/quakejs:latest
-```
+## 🚀 Cómo ejecutarlo con Docker Compose (Recomendado)
 
-#### Example:
+Ejemplo de `docker-compose.yml` usando un **entrypoint inline**:
 
-```
-docker run -d --name quakejs -e SERVER=0.0.0.0 -e HTTP_PORT=8080 -p 8080:80 -p 27960:27960 treyyoder/quakejs:latest
-```
-
-Send all you friends/coworkers the link: ex. http://localhost:8080 and start fragging ;)
-
-#### server.cfg:
-Refer to [quake3world](https://www.quake3world.com/q3guide/servers.html) for instructions on its usage.
-
-#### docker-compose.yml
-```
-version: '2'
+```yaml
 services:
-    quakejs:
-        container_name: quakejs
-        environment:
-            - HTTP_PORT=8080
-        ports:
-            - '8080:80'
-            - '27960:27960'
-        image: 'treyyoder/quakejs:latest'
+  quakejs:
+    build: .
+    container_name: quakejs
+    environment:
+      - HTTP_PORT=8080
+      - SERVER=0.0.0.0
+    ports:
+      - "8080:80"
+      - "27960:27960"
+    entrypoint: >
+      sh -c "
+      cd /var/www/html &&
+      sed -i \"s/'quakejs:/window.location.hostname + ':/g\" index.html &&
+      sed -i \"s/':80'/':${HTTP_PORT}'/g\" index.html &&
+      /etc/init.d/apache2 start &&
+      cd /quakejs &&
+      node build/ioq3ded.js
+        +set fs_game baseq3
+        +set dedicated 1
+        +set fs_cdn 127.0.0.1
+        +exec server.cfg
+      "
+````
+
+Lanzar el servidor:
+
+```bash
+docker-compose up -d --build
 ```
 
-#### Building the Image
-After pulling the repo, change both `Dockerfile` and `entrypoint.sh` from CRLF to LF.
+---
 
-Build the image with:
+## 🐳 Cómo ejecutarlo con Docker CLI (`docker run`)
 
-`docker build --add-host=content.quakejs.com:127.0.0.1 -t treyyoder/quakejs:latest .`
+Primero, construye la imagen localmente:
 
-## Credits:
+```bash
+docker build -t quakejs-local .
+```
 
-Thanks to [begleysm](https://github.com/begleysm) with his [fork](https://github.com/begleysm/quakejs) of [quakejs](https://github.com/inolen/quakejs) to which this was derived, aswell as his thorough [documentation](https://steamforge.net/wiki/index.php/How_to_setup_a_local_QuakeJS_server_under_Debian_9_or_Debian_10)
+Luego ejecútala sobrescribiendo el `entrypoint`:
+
+```bash
+docker run -d \
+  --name quakejs \
+  -e HTTP_PORT=8080 \
+  -e SERVER=0.0.0.0 \
+  -p 8080:80 \
+  -p 27960:27960 \
+  --entrypoint sh \
+  quakejs-local \
+  -c "
+  cd /var/www/html &&
+  sed -i \"s/'quakejs:/window.location.hostname + ':/g\" index.html &&
+  sed -i \"s/':80'/':${HTTP_PORT}'/g\" index.html &&
+  /etc/init.d/apache2 start &&
+  cd /quakejs &&
+  node build/ioq3ded.js
+    +set fs_game baseq3
+    +set dedicated 1
+    +set fs_cdn 127.0.0.1
+    +exec server.cfg
+  "
+```
+
+---
+
+## 🎮 Cómo jugar
+
+Envía a tus amigos el enlace, por ejemplo:
+
+```
+http://localhost:8080
+```
+
+¡Y que empiece el **fragging**! 🔫💥
+
+---
+
+## 🔧 Cambios realizados para que funcione
+
+* **Parcheo dinámico del cliente web**
+  Se modifica `index.html` en tiempo de ejecución para:
+
+  * Usar automáticamente el hostname del navegador
+  * Respetar el puerto HTTP configurado (`HTTP_PORT`)
+
+* **Servidor totalmente local**
+  No depende de `content.quakejs.com`.
+  Todo el contenido se sirve desde el propio contenedor.
+
+* **Apache + servidor Quake en el mismo contenedor**
+  Apache se lanza en segundo plano y el proceso principal es el servidor Node.js.
+
+---
+
+## ⚙️ server.cfg
+
+Consulta la documentación de Quake 3 para configurar el servidor:
+
+[https://www.quake3world.com/q3guide/servers.html](https://www.quake3world.com/q3guide/servers.html)
+
+---
+
+## 🙌 Créditos
+
+Gracias a:
+
+* [https://github.com/treyyoder](https://github.com/treyyoder) por la base original
+* [https://github.com/begleysm](https://github.com/begleysm) por el fork de
+  [https://github.com/inolen/quakejs](https://github.com/inolen/quakejs), del cual se deriva este proyecto
