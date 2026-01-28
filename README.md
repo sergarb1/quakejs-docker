@@ -1,31 +1,36 @@
-   
+<div align="center">
+    
 ![logo](https://github.com/treyyoder/quakejs-docker/blob/master/quakejs-docker.png?raw=true)
-# QuakeJS Docker (Versión Modificada)
+# QuakeJS Docker (Versión Modificada – Runtime Patch)
 
 ![Docker Image CI](https://github.com/treyyoder/quakejs-docker/workflows/Docker%20Image%20CI/badge.svg)
 </div>
 
 ### Un servidor de QuakeJS totalmente local y "dockerizado". Independiente y listo para la acción.
 
-Esta es una versión modificada para asegurar que el juego funcione correctamente (“para que vaya”) sin depender de servicios externos.  
-Se han realizado ajustes para **parchear dinámicamente el cliente web (`index.html`) en tiempo de ejecución**, gestionando correctamente el hostname y el puerto HTTP.
+Esta guía utiliza la **imagen oficial existente**  
+`treyyoder/quakejs:latest`  
+
+sin necesidad de modificarla ni reconstruirla.
+
+El funcionamiento correcto se consigue **sobrescribiendo el entrypoint en tiempo de ejecución**, para parchear dinámicamente el cliente web y lanzar el servidor Quake de forma totalmente local.
 
 ---
 
 ## 🚀 Cómo ejecutarlo con Docker Compose (Recomendado)
 
-Ejemplo de `docker-compose.yml` usando un **entrypoint inline**:
+Ejemplo de `docker-compose.yml` usando directamente la imagen oficial y un **entrypoint inline**:
 
 ```yaml
 services:
   quakejs:
-    build: .
+    image: treyyoder/quakejs:latest
     container_name: quakejs
     environment:
-      - HTTP_PORT=8080
+      - HTTP_PORT=8088
       - SERVER=0.0.0.0
     ports:
-      - "8080:80"
+      - "8088:80"
       - "27960:27960"
     entrypoint: >
       sh -c "
@@ -45,30 +50,25 @@ services:
 Lanzar el servidor:
 
 ```bash
-docker-compose up -d --build
+docker-compose up -d
 ```
 
 ---
 
 ## 🐳 Cómo ejecutarlo con Docker CLI (`docker run`)
 
-Primero, construye la imagen localmente:
-
-```bash
-docker build -t quakejs-local .
-```
-
-Luego ejecútala sobrescribiendo el `entrypoint`:
+No es necesario construir nada.
+Docker descargará automáticamente la imagen si no existe localmente.
 
 ```bash
 docker run -d \
   --name quakejs \
-  -e HTTP_PORT=8080 \
+  -e HTTP_PORT=8088 \
   -e SERVER=0.0.0.0 \
-  -p 8080:80 \
+  -p 8088:80 \
   -p 27960:27960 \
   --entrypoint sh \
-  quakejs-local \
+  treyyoder/quakejs:latest \
   -c "
   cd /var/www/html &&
   sed -i \"s/'quakejs:/window.location.hostname + ':/g\" index.html &&
@@ -87,45 +87,68 @@ docker run -d \
 
 ## 🎮 Cómo jugar
 
-Envía a tus amigos el enlace, por ejemplo:
+Abre el navegador y comparte el enlace con tus amigos:
 
 ```
-http://localhost:8080
+http://localhost:8088
 ```
 
-¡Y que empiece el **fragging**! 🔫💥
+Funciona también en red local usando la IP del host:
+
+```
+http://IP_DEL_SERVIDOR:8088
+```
+
+¡Que empiece el **fragging**! 🔫💥
 
 ---
 
-## 🔧 Cambios realizados para que funcione
+## 🔧 Qué se modifica en tiempo de ejecución
 
-* **Parcheo dinámico del cliente web**
-  Se modifica `index.html` en tiempo de ejecución para:
+* **Parcheo dinámico del cliente web (`index.html`)**
 
-  * Usar automáticamente el hostname del navegador
-  * Respetar el puerto HTTP configurado (`HTTP_PORT`)
+  * Se elimina el hostname fijo `quakejs`
+  * Se usa automáticamente `window.location.hostname`
+  * Se respeta el puerto definido por `HTTP_PORT`
 
-* **Servidor totalmente local**
-  No depende de `content.quakejs.com`.
-  Todo el contenido se sirve desde el propio contenedor.
+* **Servidor 100 % local**
 
-* **Apache + servidor Quake en el mismo contenedor**
-  Apache se lanza en segundo plano y el proceso principal es el servidor Node.js.
+  * No depende de `content.quakejs.com`
+  * Todo el contenido se sirve desde el propio contenedor
+
+* **Un solo contenedor**
+
+  * Apache sirve el cliente web
+  * Node.js ejecuta el servidor Quake 3
+  * Apache se lanza en background, Node queda como proceso principal
 
 ---
 
 ## ⚙️ server.cfg
 
-Consulta la documentación de Quake 3 para configurar el servidor:
+El archivo `server.cfg` se carga automáticamente al iniciar el servidor.
+
+Para personalizarlo, consulta la documentación oficial de Quake 3:
 
 [https://www.quake3world.com/q3guide/servers.html](https://www.quake3world.com/q3guide/servers.html)
 
 ---
 
+## 🧠 Notas
+
+* No se modifica la imagen original
+* No se requiere `Dockerfile`
+* Ideal para:
+
+  * LAN parties
+  * Clases de redes / ASIR / FP
+  * Laboratorios Docker
+  * Servidores temporales
+
+---
+
 ## 🙌 Créditos
 
-Gracias a:
-
-* [https://github.com/treyyoder](https://github.com/treyyoder) por la base original
-* [https://github.com/begleysm](https://github.com/begleysm) por el fork de
-  [https://github.com/inolen/quakejs](https://github.com/inolen/quakejs), del cual se deriva este proyecto
+* Imagen original: [https://github.com/treyyoder](https://github.com/treyyoder)
+* QuakeJS fork: [https://github.com/begleysm](https://github.com/begleysm)
+* Proyecto base: [https://github.com/inolen/quakejs](https://github.com/inolen/quakejs)
