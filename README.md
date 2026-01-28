@@ -19,7 +19,7 @@ El funcionamiento correcto se consigue **sobrescribiendo el entrypoint en tiempo
 
 ## 🚀 Cómo ejecutarlo con Docker Compose (Recomendado)
 
-Ejemplo de `docker-compose.yml` usando directamente la imagen oficial y un **entrypoint inline**:
+Ejemplo de `docker-compose.yml`:
 
 ```yaml
 services:
@@ -36,15 +36,7 @@ services:
       sh -c "
       cd /var/www/html &&
       sed -i \"s/'quakejs:/window.location.hostname + ':/g\" index.html &&
-      sed -i \"s/':80'/':${HTTP_PORT}'/g\" index.html &&
-      /etc/init.d/apache2 start &&
-      cd /quakejs &&
-      node build/ioq3ded.js
-        +set fs_game baseq3
-        +set dedicated 1
-        +set fs_cdn 127.0.0.1
-        +exec server.cfg
-      "
+      sed -i \"s/':80'/':8088'/g\" index.html && /etc/init.d/apache2 start && cd /quakejs && node build/ioq3ded.js         +set fs_game baseq3         +set dedicated 1         +set fs_cdn 127.0.0.1         +exec server.cfg"
 ````
 
 Lanzar el servidor:
@@ -57,8 +49,7 @@ docker-compose up -d
 
 ## 🐳 Cómo ejecutarlo con Docker CLI (`docker run`)
 
-No es necesario construir nada.
-Docker descargará automáticamente la imagen si no existe localmente.
+Directamente con la imagen pública:
 
 ```bash
 docker run -d \
@@ -69,18 +60,7 @@ docker run -d \
   -p 27960:27960 \
   --entrypoint sh \
   treyyoder/quakejs:latest \
-  -c "
-  cd /var/www/html &&
-  sed -i \"s/'quakejs:/window.location.hostname + ':/g\" index.html &&
-  sed -i \"s/':80'/':${HTTP_PORT}'/g\" index.html &&
-  /etc/init.d/apache2 start &&
-  cd /quakejs &&
-  node build/ioq3ded.js
-    +set fs_game baseq3
-    +set dedicated 1
-    +set fs_cdn 127.0.0.1
-    +exec server.cfg
-  "
+  -c "cd /var/www/html && sed -i \"s/'quakejs:/window.location.hostname + ':/g\" index.html && sed -i \"s/':80'/':8088'/g\" index.html && /etc/init.d/apache2 start && cd /quakejs && node build/ioq3ded.js         +set fs_game baseq3         +set dedicated 1         +set fs_cdn 127.0.0.1         +exec server.cfg"
 ```
 
 ---
@@ -96,7 +76,7 @@ http://localhost:8088
 Funciona también en red local usando la IP del host:
 
 ```
-http://IP_DEL_SERVIDOR:8088
+http://IP_DEL_HOST:8088
 ```
 
 ¡Que empiece el **fragging**! 🔫💥
@@ -109,7 +89,7 @@ http://IP_DEL_SERVIDOR:8088
 
   * Se elimina el hostname fijo `quakejs`
   * Se usa automáticamente `window.location.hostname`
-  * Se respeta el puerto definido por `HTTP_PORT`
+  * Se respeta el puerto HTTP definido (8088 en este caso)
 
 * **Servidor 100 % local**
 
